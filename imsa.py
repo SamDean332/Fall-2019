@@ -8,6 +8,12 @@ import geojson
 import urllib.request
 import feedparser
 import csv
+import geograpy
+import nltk
+nltk.download('punkt')
+nltk.download('averaged_perceptron_tagger')
+nltk.download('maxent_ne_chunker')
+nltk.download('words')
 
 # Basis of every application
 
@@ -36,7 +42,7 @@ num_results = 50
 
 # ##################### RSS ####################
 
-wordBank = ['bomb', 'explosion', 'protest',
+wordBank = ['bomb', 'explosion', 'protest', 'war',
             'port delay', 'port closure', 'hijack',
             'tropical storm', 'tropical depression']
 RSSUrls = []
@@ -47,18 +53,18 @@ def contains_wanted(in_str):
     # returns true if the in_str contains a keyword
     # we are interested in. Case-insensitive
     for wrd in wordBank:
-        if wrd.lower() in in_str:
+        if wrd in in_str:
             return True
     return False
 
 
 rss = pd.read_csv('RSSfeed2019.csv')
-print(rss.head())
+# print(rss.head())
 
 feeds = []  # list of feed objects
 for url in rss['URL'].head(5):
     feeds.append(feedparser.parse(url))
-    print(feeds)
+    # print(feeds)
 
 posts = []  # list of posts [(title1, link1, summary1), (title2, link2, summary2) ... ]
 for feed in feeds:
@@ -70,7 +76,27 @@ for feed in feeds:
             
 
 df = pd.DataFrame(posts, columns=['title', 'link', 'summary'])
-print(df)
+
+mask = df['summary'].str.contains(rf"\b{'|'.join(wordBank)}\b", case=False) | \
+       df['title'].str.contains(rf"\b{'|'.join(wordBank)}\b", case=False)
+
+# extract titles
+titles = df['title'].values
+
+# print them
+for title in titles[mask]:
+    hits = df[mask]
+
+urls = hits['link'].values
+
+for url in urls:
+    places = (geograpy.get_place_context(url=url))
+    print(places.country_regions, "\n", places.country_cities, "\n", places.address_strings, "\n",
+          places.country_mentions, "\n", places.city_mentions, "\n")
+
+
+hits.to_csv('myfile.txt', sep=' ', mode='w')
+
 
 # Certain user Tweets
 # name = "AuroraIntel"
